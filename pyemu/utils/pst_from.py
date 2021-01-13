@@ -86,6 +86,7 @@ class PstFrom(object):
         zero_based=True,
         start_datetime=None,
         tpl_subfolder=None,
+        multi_threads=True
     ):
 
         self.original_d = Path(original_d)
@@ -141,6 +142,8 @@ class PstFrom(object):
         self.get_xy = None
         self.add_pars_callcount = 0
         self.ijwarned = {}
+
+        self.multi_threads = multi_threads
         self.initialize_spatial_reference()
 
         self._setup_dirs()
@@ -589,7 +592,7 @@ class PstFrom(object):
                     self.pre_py_cmds.insert(
                         0,
                         "pyemu.helpers.apply_list_and_array_pars("
-                        "arr_par_file='mult2model_info.csv')",
+                        "arr_par_file='mult2model_info.csv', multi_threads={})".format(self.multi_threads),
                     )
             else:
                 par_data = pyemu.pst_utils._populate_dataframe(

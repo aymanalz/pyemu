@@ -3563,7 +3563,7 @@ class PstFromFlopyModel(object):
             self.frun_post_lines.append(line)
 
 
-def apply_list_and_array_pars(arr_par_file="mult2model_info.csv", chunk_len=50):
+def apply_list_and_array_pars(arr_par_file="mult2model_info.csv", chunk_len=50, multi_threads = True):
     """Apply multiplier parameters to list and array style model files
 
     Args:
@@ -3588,8 +3588,8 @@ def apply_list_and_array_pars(arr_par_file="mult2model_info.csv", chunk_len=50):
     list_pars["lower_bound"] = list_pars.lower_bound.apply(lambda x: literal_eval(x))
     list_pars["upper_bound"] = list_pars.upper_bound.apply(lambda x: literal_eval(x))
     # TODO check use_cols is always present
-    apply_genericlist_pars(list_pars, chunk_len=chunk_len)
-    apply_array_pars(arr_pars, chunk_len=chunk_len)
+    apply_genericlist_pars(list_pars, chunk_len=chunk_len, multi_threads = multi_threads)
+    apply_array_pars(arr_pars, chunk_len=chunk_len, multi_threads = multi_threads)
 
 
 def _process_chunk_fac2real(chunk, i):
@@ -3648,7 +3648,7 @@ def _process_array_file(model_file, df):
     np.savetxt(model_file, np.atleast_2d(org_arr), fmt="%15.6E", delimiter="")
 
 
-def apply_array_pars(arr_par="arr_pars.csv", arr_par_file=None, chunk_len=50):
+def apply_array_pars(arr_par="arr_pars.csv", arr_par_file=None, chunk_len=50, multi_threads = True):
     """a function to apply array-based multipler parameters.
 
     Args:
@@ -3718,14 +3718,19 @@ def apply_array_pars(arr_par="arr_pars.csv", arr_par_file=None, chunk_len=50):
         remainder = np.array(pp_args)[num_chunk_floor * chunk_len :].tolist()
         chunks = main_chunks + [remainder]
         print("...",len(chunks))
-        pool = mp.Pool()
-        x = [
-            pool.apply_async(_process_chunk_fac2real, args=(chunk, i))
-            for i, chunk in enumerate(chunks)
-        ]
-        [xx.get() for xx in x]
-        pool.close()
-        pool.join()
+        if multi_threads:
+            pool = mp.Pool()
+            x = [
+                pool.apply_async(_process_chunk_fac2real, args=(chunk, i))
+                for i, chunk in enumerate(chunks)
+            ]
+            [xx.get() for xx in x]
+            pool.close()
+            pool.join()
+        else:
+            for i, chunk in enumerate(chunks):
+                _process_chunk_fac2real(chunk, i)
+            
         # procs = []
         # for chunk in chunks:
         #     p = mp.Process(target=_process_chunk_fac2real, args=[chunk])
@@ -3756,14 +3761,19 @@ def apply_array_pars(arr_par="arr_pars.csv", arr_par_file=None, chunk_len=50):
     # for p in procs:
     #     r = p.get(False)
     #     p.join()
-    pool = mp.Pool()
-    x = [
-        pool.apply_async(_process_chunk_array_files, args=(chunk, i, df))
-        for i, chunk in enumerate(chunks)
-    ]
-    [xx.get() for xx in x]
-    pool.close()
-    pool.join()
+    if multi_threads:
+        pool = mp.Pool()
+        x = [
+            pool.apply_async(_process_chunk_array_files, args=(chunk, i, df))
+            for i, chunk in enumerate(chunks)
+        ]
+        [xx.get() for xx in x]
+        pool.close()
+        pool.join()
+    else:
+        for i, chunk in enumerate(chunks):
+            _process_chunk_array_files(chunk, i, df)
+            
     print("finished arr mlt", datetime.now())
 
 
@@ -3898,7 +3908,7 @@ def apply_list_pars():
         )
 
 
-def apply_genericlist_pars(df,chunk_len=50):
+def apply_genericlist_pars(df,chunk_len=50, multi_threads = True):
     """a function to apply list style mult parameters
 
     Args:
@@ -3930,14 +3940,19 @@ def apply_genericlist_pars(df,chunk_len=50):
     remainder = uniq[num_chunk_floor * chunk_len:].tolist()  # remaining files
     chunks = main_chunks + [remainder]
     print("...",len(chunks))
-    pool = mp.Pool()
-    x = [
-        pool.apply_async(_process_chunk_list_files, args=(chunk, i, df))
-        for i, chunk in enumerate(chunks)
-    ]
-    [xx.get() for xx in x]
-    pool.close()
-    pool.join()
+    if multi_threads:
+        pool = mp.Pool()
+        x = [
+            pool.apply_async(_process_chunk_list_files, args=(chunk, i, df))
+            for i, chunk in enumerate(chunks)
+        ]
+        [xx.get() for xx in x]
+        pool.close()
+        pool.join()
+    else:
+        for i, chunk in enumerate(chunks):
+            _process_chunk_list_files(chunk, i, df)
+            
     print("finished list mlt", datetime.now())
 
 def _process_chunk_list_files(chunk, i, df):
